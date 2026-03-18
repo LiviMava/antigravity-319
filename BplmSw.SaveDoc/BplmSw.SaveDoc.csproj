@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+	<PropertyGroup>
+		<TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+		<OutputType>Library</OutputType>
+		<LangVersion>latest</LangVersion>
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<Deterministic>true</Deterministic>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<RootNamespace>BplmSw.SaveDoc</RootNamespace>
+		<AssemblyName>BplmSw.SaveDoc</AssemblyName>
+		<OutputPath>D:\Program Files\SOLIDWORKS Corp\BplmSw\Assemblies</OutputPath>
+    <!-- 启动外部程序 -->
+    <StartAction>Program</StartAction>
+    <StartProgram>D:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\SLDWORKS.exe</StartProgram>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\BplmSw.HttpRequest\BplmSw.HttpRequest.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Reference Include="SolidWorks.Interop.sldworks">
+	    <HintPath>..\lib\SolidWorks.Interop.sldworks.dll</HintPath>
+	  </Reference>
+	  <Reference Include="SolidWorks.Interop.swconst">
+	    <HintPath>..\lib\SolidWorks.Interop.swconst.dll</HintPath>
+	  </Reference>
+	  <Reference Include="SolidWorks.Interop.swpublished">
+	    <HintPath>..\lib\SolidWorks.Interop.swpublished.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Xarial.XCad">
+	    <HintPath>..\lib\Xarial.XCad.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Xarial.XCad.SolidWorks">
+	    <HintPath>..\lib\Xarial.XCad.SolidWorks.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Xarial.XCad.Toolkit">
+	    <HintPath>..\lib\Xarial.XCad.Toolkit.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,12 @@
+﻿
+
+[HKEY_CLASSES_ROOT\BPLMSW]
+@="URL:BPLMSW Protocol"
+"URL Protocol"=""
+
+[HKEY_CLASSES_ROOT\BPLMSW\shell]
+
+[HKEY_CLASSES_ROOT\BPLMSW\shell\open]
+
+[HKEY_CLASSES_ROOT\BPLMSW\shell\open\command]
+@="\"D:\\Program Files\\SOLIDWORKS Corp\\BplmSw\\Assemblies\\net472\\BplmSw.Launcher.exe\" \"%1\""

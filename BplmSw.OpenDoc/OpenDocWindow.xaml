@@ -1,0 +1,215 @@
+<Window x:Class="BplmSw.OpenDoc.OpenDocWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:BplmSw.OpenDoc"
+        mc:Ignorable="d"
+        Title="打开文件" Height="600" Width="900"
+        WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/BplmSw.OpenDoc;component/Themes/Generic.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <local:IndentAwareColumnWidthConverter x:Key="IndentConverter" Indent="19"/>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 左边 -->
+        <Grid Grid.Column="0" Margin="0,0,10,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="5*"/>
+                <RowDefinition Height="2*"/>
+                <RowDefinition Height="50"/>
+            </Grid.RowDefinitions>
+
+            <Expander Header="浏览" Style="{StaticResource TaskPane_ExpanderStyle}" IsExpanded="True" Grid.Row="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 1. 搜索区 -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Label Content="编号：" VerticalAlignment="Center"/>
+                        <TextBox x:Name="txtSearchId" Width="100" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                        <Label Content="名称：" VerticalAlignment="Center"/>
+                        <TextBox x:Name="txtSearchName" Width="100" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                        <Label Content="类型：" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="cbSearchType" Width="100" VerticalAlignment="Center" Margin="0,0,10,0">
+                        </ComboBox>
+
+                        <Button x:Name="btnSearch" Content="🔍" Width="30" VerticalAlignment="Center" ToolTip="搜索" Click="btnSearch_Click"/>
+                        <Button x:Name="btnBack" Content="⬅" Width="30" VerticalAlignment="Center" Margin="5,0,0,0" ToolTip="返回上一级" Click="btnBack_Click"/>
+                    </StackPanel>
+
+                    <!-- 2. 展示区 (TreeView Hierarchy) -->
+                    <Grid Grid.Row="1" x:Name="treeContainer" Grid.IsSharedSizeScope="True">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- 树形视图表头 -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <!--改对象列的width要同步下面的ConverterParameter-->
+                                <ColumnDefinition Width="120" SharedSizeGroup="ColObject"/>
+                                <ColumnDefinition Width="120" SharedSizeGroup="ColId"/>
+                                <ColumnDefinition Width="40" SharedSizeGroup="ColRev"/>
+                                <ColumnDefinition Width="120" SharedSizeGroup="ColDesc"/>
+                                <ColumnDefinition Width="80" SharedSizeGroup="ColType"/>
+                                <ColumnDefinition Width="60" SharedSizeGroup="ColState"/>
+                                <ColumnDefinition Width="120" SharedSizeGroup="ColOwner"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="#EEE" BorderBrush="#CCC" BorderThickness="0,0,1,1" Padding="5,2">
+                                <TextBlock Text="对象" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="1" Background="#EEE" BorderBrush="#CCC" BorderThickness="0,0,1,1" Padding="5,2">
+                                <TextBlock Text="对象编码" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="2" Background="#EEE" BorderBrush="#CCC" BorderThickness="0,0,1,1" Padding="5,2">
+                                <TextBlock Text="版本" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="3" Background="#EEE" BorderBrush="#CCC" BorderThickness="0,0,1,1" Padding="5,2">
+                                <TextBlock Text="中文名称" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="4" Background="#EEE" BorderBrush="#CCC" BorderThickness="0,0,1,1" Padding="5,2">
+                                <TextBlock Text="对象类型" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="5" Background="#EEE" BorderBrush="#CCC" BorderThickness="0,0,1,1" Padding="5,2">
+                                <TextBlock Text="签出状态" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border Grid.Column="6" Background="#EEE" BorderBrush="#CCC" BorderThickness="0,0,0,1" Padding="5,2">
+                                <TextBlock Text="所有者" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+
+                        <TreeView Grid.Row="1" x:Name="gridMain" BorderThickness="1" BorderBrush="#CCC"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  SelectedItemChanged="TreeView_SelectedItemChanged"
+                                  TreeViewItem.Expanded="TreeView_Expanded"
+                                  MouseDoubleClick="TreeView_MouseDoubleClick"
+                                  Background="#FFE5E5E5">
+                            <TreeView.Resources>
+                                <HierarchicalDataTemplate DataType="{x:Type local:DisplayItem}" ItemsSource="{Binding Children}">
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="{Binding RelativeSource={RelativeSource AncestorType={x:Type TreeViewItem}}, 
+                                                Converter={StaticResource IndentConverter}, ConverterParameter=120}"/>
+
+                                            <ColumnDefinition Width="120" SharedSizeGroup="ColId"/>
+                                            <ColumnDefinition Width="40" SharedSizeGroup="ColRev"/>
+                                            <ColumnDefinition Width="120" SharedSizeGroup="ColDesc"/>
+                                            <ColumnDefinition Width="80" SharedSizeGroup="ColType"/>
+                                            <ColumnDefinition Width="60" SharedSizeGroup="ColState"/>
+                                            <ColumnDefinition Width="120" SharedSizeGroup="ColOwner"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <Grid Grid.Column="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Image Source="{Binding IconPath}" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
+
+                                            <TextBlock Grid.Column="1" 
+                                                Text="{Binding Name}" 
+                                                VerticalAlignment="Center" 
+                                                TextTrimming="CharacterEllipsis" 
+                                                ToolTip="{Binding Name}"/>
+                                        </Grid>
+
+                                        <TextBlock Grid.Column="1" Text="{Binding Id}" TextTrimming="CharacterEllipsis" Margin="5,0" ToolTip="{Binding Id}"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Rev}" TextTrimming="CharacterEllipsis" Margin="5,0" ToolTip="{Binding Rev}"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding Desc}" TextTrimming="CharacterEllipsis" Margin="5,0" ToolTip="{Binding Desc}"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding TypeName}" TextTrimming="CharacterEllipsis" Margin="5,0" ToolTip="{Binding TypeName}"/>
+                                        <TextBlock Grid.Column="5" Text="{Binding State}" TextTrimming="CharacterEllipsis" Margin="5,0" ToolTip="{Binding State}"/>
+                                        <TextBlock Grid.Column="6" Text="{Binding Owner}" TextTrimming="CharacterEllipsis" Margin="5,0" ToolTip="{Binding Owner}"/>
+                                    </Grid>
+                                </HierarchicalDataTemplate>
+                            </TreeView.Resources>
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="{x:Type TreeViewItem}">
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
+                        </TreeView>
+                    </Grid>
+
+                    <!-- 分页区 -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5,0,5">
+                        <Button x:Name="btnPrev" Content="&lt;" Width="20" Click="btnPrev_Click" Margin="0,0,5,0" ToolTip="上一页"/>
+                        <TextBlock x:Name="txtPageInfo" Text="1/1" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <Button x:Name="btnNext" Content="&gt;" Width="20" Click="btnNext_Click" Margin="0,0,10,0" ToolTip="下一页"/>
+                        <Label x:Name="lblTotal" Content="共 0 条"/>
+                    </StackPanel>
+                </Grid>
+            </Expander>
+
+            <!-- 3. 历史区 -->
+            <Expander Grid.Row="1" Header="历史版本" Style="{StaticResource TaskPane_ExpanderStyle}" IsExpanded="True">
+                <DataGrid x:Name="gridHistory" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                          HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderBrush="Gray" BorderThickness="1">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="对象" Binding="{Binding DisplayObject}" Width="60" />
+                        <DataGridTextColumn Header="对象编码" Binding="{Binding item_id}" Width="120"/>
+                        <DataGridTextColumn Header="版本号" Binding="{Binding item_revision_id}" Width="auto"/>
+                        <DataGridTextColumn Header="中文名称" Binding="{Binding object_name}" Width="120"/>
+                        <DataGridTextColumn Header="对象类型" Binding="{Binding type}" Width="80"/>
+                        <DataGridTextColumn Header="签出状态" Binding="{Binding DisplayCheckOutState}" Width="60"/>
+                        <DataGridTextColumn Header="生命周期状态" Binding="{Binding z9_effective_status}" Width="auto"/>
+                        <DataGridTextColumn Header="所有者" Binding="{Binding owning_user}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Expander>
+        </Grid>
+
+        <!-- 右边 -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="3*"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="4*"/>
+                <RowDefinition Height="50"/>
+            </Grid.RowDefinitions>
+
+            <!-- 5. 预览区 -->
+            <Expander x:Name="PreviewExpander" Header="空附件" Style="{StaticResource TaskPane_ExpanderStyle}" IsExpanded="True" Grid.Row="0">
+                <Image x:Name="imgPreview" Source="Resources/preview.bmp" Stretch="Uniform"/>
+            </Expander>
+
+            <!-- 6. 文件属性区 -->
+            <Expander Header="文件属性" Style="{StaticResource TaskPane_ExpanderStyle}" IsExpanded="True" Grid.Row="2">
+                <DataGrid x:Name="gridAttributes" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" 
+                          HorizontalGridLinesBrush="LightGray" VerticalGridLinesBrush="LightGray" BorderBrush="Gray" BorderThickness="1">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="名称" Binding="{Binding Description}" Width="*"/>
+                        <DataGridTextColumn Header="值" Binding="{Binding Value}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Expander>
+
+            <Grid Grid.Row="3">
+                <Button x:Name="btnOK" Content="确定" Width="80" Height="25" HorizontalAlignment="Left" Margin="10,0,0,0" Click="btnOK_Click"/>
+                <Button x:Name="btnCancel" Content="取消" Width="80" Height="25" HorizontalAlignment="Right" Margin="0,0,10,0" Click="btnCancel_Click"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

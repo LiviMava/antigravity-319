@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+	<PropertyGroup>
+		<!-- 目标框架 -->
+		<TargetFramework>net472</TargetFramework>
+
+		<!-- 启用 WPF 和 WinForms -->
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+		
+		<!-- 输出类型 -->
+		<OutputType>Library</OutputType>
+
+		<!-- 编译配置 -->
+		<LangVersion>latest</LangVersion>
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<Deterministic>true</Deterministic>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<RootNamespace>BplmSw</RootNamespace>
+		<AssemblyName>BplmSw</AssemblyName>
+		<OutputPath>D:\Program Files\SOLIDWORKS Corp\BplmSw\Assemblies</OutputPath>
+		<!-- 启动外部程序 -->
+		<StartAction>Program</StartAction>
+		<StartProgram>D:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\SLDWORKS.exe</StartProgram>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\BplmSw.Common\BplmSw.Common.csproj" />
+	  <ProjectReference Include="..\BplmSw.HttpRequest\BplmSw.HttpRequest.csproj" />
+	  <ProjectReference Include="..\BplmSw.Login\BplmSw.Login.csproj" />
+	  <ProjectReference Include="..\BplmSw.NewDoc\BplmSw.NewDoc.csproj" />
+	  <ProjectReference Include="..\BplmSw.SaveDoc\BplmSw.SaveDoc.csproj" />
+	  <ProjectReference Include="..\BplmSw.Assembly\BplmSw.Assembly.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Reference Include="SolidWorks.Interop.sldworks">
+	    <HintPath>..\lib\SolidWorks.Interop.sldworks.dll</HintPath>
+	  </Reference>
+	  <Reference Include="SolidWorks.Interop.swconst">
+	    <HintPath>..\lib\SolidWorks.Interop.swconst.dll</HintPath>
+	  </Reference>
+	  <Reference Include="SolidWorks.Interop.swpublished">
+	    <HintPath>..\lib\SolidWorks.Interop.swpublished.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Xarial.XCad">
+	    <HintPath>..\lib\Xarial.XCad.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Xarial.XCad.SolidWorks">
+	    <HintPath>..\lib\Xarial.XCad.SolidWorks.dll</HintPath>
+	  </Reference>
+	  <Reference Include="Xarial.XCad.Toolkit">
+	    <HintPath>..\lib\Xarial.XCad.Toolkit.dll</HintPath>
+	  </Reference>
+	</ItemGroup>
+</Project>

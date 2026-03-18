@@ -1,0 +1,13 @@
+# IDE / editor
+.vs/
+.claude/
+
+# Build outputs
+obj/
+bin/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,85 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+	<PropertyGroup>
+		<!-- 目标框架 -->
+		<TargetFramework>net472</TargetFramework>
+
+		<!-- 启用 WPF 和 WinForms -->
+		<UseWPF>true</UseWPF>
+		<UseWindowsForms>true</UseWindowsForms>
+
+		<!-- 输出类型 -->
+		<OutputType>Library</OutputType>
+
+		<!-- 编译配置 -->
+		<LangVersion>latest</LangVersion>
+		<PlatformTarget>AnyCPU</PlatformTarget>
+		<Deterministic>true</Deterministic>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<RootNamespace>BplmSw.NewDoc</RootNamespace>
+		<AssemblyName>BplmSw.NewDoc</AssemblyName>
+		<OutputPath>D:\Program Files\SOLIDWORKS Corp\BplmSw\Assemblies</OutputPath>
+		<!-- 启动外部程序 -->
+		<StartAction>Program</StartAction>
+		<StartProgram>D:\Program Files\SOLIDWORKS Corp\SOLIDWORKS\SLDWORKS.exe</StartProgram>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="FolderWindow.xaml.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Remove="Resources\attribute.png" />
+		<None Remove="Resources\folder.png" />
+		<None Remove="Resources\preview.bmp" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Page Remove="FolderWindow.xaml" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\BplmSw.Common\BplmSw.Common.csproj" />
+		<ProjectReference Include="..\BplmSw.HttpRequest\BplmSw.HttpRequest.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="HandyControl" Version="3.5.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Newtonsoft.Json">
+			<HintPath>..\lib\Newtonsoft.Json.dll</HintPath>
+		</Reference>
+		<Reference Include="SolidWorks.Interop.sldworks">
+			<HintPath>..\lib\SolidWorks.Interop.sldworks.dll</HintPath>
+		</Reference>
+		<Reference Include="SolidWorks.Interop.swconst">
+			<HintPath>..\lib\SolidWorks.Interop.swconst.dll</HintPath>
+		</Reference>
+		<Reference Include="SolidWorks.Interop.swpublished">
+			<HintPath>..\lib\SolidWorks.Interop.swpublished.dll</HintPath>
+		</Reference>
+		<Reference Include="Xarial.XCad">
+			<HintPath>..\lib\Xarial.XCad.dll</HintPath>
+		</Reference>
+		<Reference Include="Xarial.XCad.SolidWorks">
+			<HintPath>..\lib\Xarial.XCad.SolidWorks.dll</HintPath>
+		</Reference>
+		<Reference Include="Xarial.XCad.Toolkit">
+			<HintPath>..\lib\Xarial.XCad.Toolkit.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<Resource Include="Resources\attribute.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\folder.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\preview.bmp">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
+	</ItemGroup>
+</Project>
