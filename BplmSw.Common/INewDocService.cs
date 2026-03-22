@@ -12,6 +12,7 @@ namespace BplmSw.Common
         /// <param name="sw">ISldWorks 实例（传 object 避免 Common 引用 SW 互操作）</param>
         /// <param name="puid">零部件版本对象 UID</param>
         /// <param name="objectType">对象类型</param>
-        void ShowNewDocDialog(object sw, string puid, string objectType);
+        /// <returns>true 表示成功新建，false 表示用户取消</returns>
+        bool ShowNewDocDialog(object sw, string puid, string objectType);
     }
 }

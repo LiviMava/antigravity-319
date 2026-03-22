@@ -716,7 +716,12 @@ namespace BplmSw.OpenDoc
                     {
                         foreach (var kvp in toNewDoc)
                         {
-                            NewDocServiceLocator.Instance.ShowNewDocDialog(Sw, kvp.Key, kvp.Value);
+                            bool created = NewDocServiceLocator.Instance.ShowNewDocDialog(Sw, kvp.Key, kvp.Value);
+                            if (!created) // 用户取消新建，终止整个打开流程
+                            {
+                                this.Close();
+                                return;
+                            }
                         }
                     }
                     // 文件下载和新建结束后，自底向上重组更新装配体

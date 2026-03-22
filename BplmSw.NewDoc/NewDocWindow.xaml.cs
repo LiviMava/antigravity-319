@@ -491,6 +491,7 @@ namespace BplmSw.NewDoc
 
                 IFrame iFrame = Sw.Frame() as IFrame;
                 iFrame.SetStatusBarText("创建成功: " + attrs[ITEM_ID] + "_" + attrs[ITEM_REVISION_ID]);
+                this.DialogResult = true;
                 this.Close();
 
                 // 图纸

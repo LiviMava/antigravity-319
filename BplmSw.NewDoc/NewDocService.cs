@@ -8,14 +8,14 @@ namespace BplmSw.NewDoc
     /// </summary>
     public class NewDocService : INewDocService
     {
-        public void ShowNewDocDialog(object sw, string puid, string objectType)
+        public bool ShowNewDocDialog(object sw, string puid, string objectType)
         {
             // 将参数写入 SessionContext，NewDocWindow 构造函数会读取
             SessionContext.Puid = puid;
             SessionContext.ObjectType = objectType;
 
             var window = new NewDocWindow((ISldWorks)sw, NewDocWindowMode.NoDrawingTemplate);
-            window.ShowDialog(); // 模态阻塞，关闭后才返回
+            return window.ShowDialog() == true; // true=成功新建, false=用户取消
         }
     }
 }
