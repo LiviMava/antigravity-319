@@ -170,57 +170,129 @@ namespace BplmSw
                 }
                 if (!string.IsNullOrEmpty(SessionContext.Puid) && !string.IsNullOrEmpty(SessionContext.ObjectType))
                 {
-                    if (FOLDER_ITEMS.Contains(SessionContext.ObjectType))
+                    string id = SessionContext.Puid, type = SessionContext.ObjectType;
+                    SessionContext.Puid = null;
+                    SessionContext.ObjectType = null;
+
+                    if (FOLDER_ITEMS.Contains(type))
+                        return;
+
+                    // 1. 获取附件Response
+                    ItemDataSetResponse dsRes = (ItemDataSetResponse)await HttpRequest.getPartAttachmentByPartIdBatch(new Dictionary<string, string> { { id, type } });
+                    if (!dsRes.isSuccess)
+                        throw new Exception("查询零部件数据集失败: " + dsRes.mesg);
+
+                    bool isDatasetExist = false;
+                    ItemDataSetResponse.DataSet topDataset = default(ItemDataSetResponse.DataSet);
+                    string fileExtType = "";
+                    // 2. 判断空，记录类型
+                    foreach (var ds in dsRes.itemDataSets[0].dataSets)
                     {
-                        SessionContext.Puid = null;
-                        SessionContext.ObjectType = null;
+                        if (DATASET_ASM_MASTER == ds.strDatasetType || DATASET_PRT_MASTER == ds.strDatasetType || DATASET_DRW_MASTER == ds.strDatasetType)
+                        {
+                            fileExtType = ds.strDatasetType;
+                            topDataset = ds;
+                            isDatasetExist = true;
+                            break;
+                        }
+                    }
+
+                    if (!isDatasetExist) // 空数据集进入新建
+                    {
+                        await HandleNewDoc();
                         return;
                     }
+                    string topFileName = topDataset.strObjectName;
+                    string topFullPath = Path.Combine(Constants.SW_CACHE_PATH, topFileName);
 
-                    // 查询零部件数据集，（附件）存在走集成打开场景，不存在走集成新建场景
-                    Dictionary<string, string> mapUid2Type = new Dictionary<string, string> { { SessionContext.Puid, SessionContext.ObjectType } };
-                    var baseRes = await HttpRequest.getPartAttachmentByPartIdBatch(mapUid2Type);
-                    if (!baseRes.isSuccess)
-                        throw new Exception("查询零部件数据集失败: " + baseRes.mesg);
-
-                    ItemDataSetResponse queryDatasetRes = (ItemDataSetResponse)baseRes;
-                    bool isPartExist = false;
-                    ItemDataSetResponse.DataSet targetDataset = default(ItemDataSetResponse.DataSet);
-                    ItemDataSetResponse.ItemDataSet targetItemDataset = queryDatasetRes.itemDataSets[0];
-                    foreach (var ds in targetItemDataset.dataSets)
+                    // 3. 下载
+                    if (DATASET_PRT_MASTER == fileExtType || DATASET_DRW_MASTER == fileExtType)
                     {
-                        if (DATASET_ASM_MASTER == ds.strDatasetType)
+                        await MD5Util.OpenDocDownLoadFromPLM(topFileName, topFullPath, topDataset);
+                    }
+                    else if (DATASET_ASM_MASTER == fileExtType)
+                    {
+                        BomLineResponse bomLineRes = (BomLineResponse)await HttpRequest.getAllBomLineByParent(id, type, "defalut_rev_rule_name");
+                        if (!bomLineRes.isSuccess)
+                            throw new Exception("查询Bom行失败: " + bomLineRes.mesg);
+                        Dictionary<string, BomLineResponse.FatherObject> uniqueParts = new Dictionary<string, BomLineResponse.FatherObject>();
+                        //去重下载清单
+                        MD5Util.TraverseBOMTree(bomLineRes.fatherObject, uniqueParts);
+                        // 1. 组装批量查询的参数
+                        Dictionary<string, string> batchQueryParams = new Dictionary<string, string>();
+                        foreach (var part in uniqueParts.Values)
                         {
-                            targetDataset = ds;
-                            isPartExist = true;
-                            break;
+                            batchQueryParams.Add(part.revision_puid, part.revision_type);
                         }
-                        else if (DATASET_PRT_MASTER == ds.strDatasetType)
+                        // 2. 批量查询零部件数据集
+                        ItemDataSetResponse idsRes = (ItemDataSetResponse)await HttpRequest.getPartAttachmentByPartIdBatch(batchQueryParams);
+                        if (!idsRes.isSuccess)
+                            throw new Exception("查询零部件数据集失败: " + idsRes.mesg);
+                        // 3. 构建并发下载任务
+                        List<Task> downloadTasks = new List<Task>();
+                        Dictionary<string, string> toNewDoc = new Dictionary<string, string>();
+                        if (idsRes.itemDataSets != null)
                         {
-                            targetDataset = ds;
-                            isPartExist = true;
-                            break;
+                            ItemDataSetResponse.DataSet childDataset = default(ItemDataSetResponse.DataSet);
+                            foreach (var ids in idsRes.itemDataSets)
+                            {
+                                foreach (var ds in ids.dataSets)
+                                {
+                                    if (DATASET_ASM_MASTER == ds.strDatasetType ||
+                                    DATASET_PRT_MASTER == ds.strDatasetType ||
+                                    DATASET_DRW_MASTER == ds.strDatasetType)
+                                    {
+                                        childDataset = ds;
+                                        break;
+                                    }
+                                }
+                                // 如果找到了符合条件的数据集，则创建下载Task
+                                if (!string.IsNullOrEmpty(childDataset.strObjectName))
+                                {
+                                    string childFileName = childDataset.strObjectName;
+                                    string childFullPath = Path.Combine(Constants.SW_CACHE_PATH, childFileName);
+                                    Task downloadTask = MD5Util.OpenDocDownLoadFromPLM(childFileName, childFullPath, childDataset);
+                                    downloadTasks.Add(downloadTask);
+                                }
+                                else if (!string.IsNullOrEmpty(childDataset.strPuid) && !string.IsNullOrEmpty(childDataset.strType))
+                                {
+                                    toNewDoc[childDataset.strPuid] = childDataset.strType;
+                                }
+                                childDataset = default(ItemDataSetResponse.DataSet);
+                            }
                         }
-                        else if (DATASET_DRW_MASTER == ds.strDatasetType)
+                        // 等待所有子件和子装配体下载完成
+                        if (downloadTasks.Count > 0) await Task.WhenAll(downloadTasks);
+                        // 对空数据集顺序打开新建窗口（通过接口调用，避免循环依赖）
+                        if (toNewDoc.Count > 0 && NewDocServiceLocator.Instance != null)
                         {
-                            targetDataset = ds;
-                            isPartExist = true;
-                            break;
+                            foreach (var kvp in toNewDoc)
+                            {
+                                NewDocServiceLocator.Instance.ShowNewDocDialog(this.Application.Sw, kvp.Key, kvp.Value);
+                            }
+                        }
+                        // 文件下载和新建结束后，自底向上重组更新装配体
+                        if (bomLineRes.fatherObject != null)
+                        {
+                            Dictionary<string, bool> processedDict = new Dictionary<string, bool>();
+                            await OpenDocWindow.UpdateAssemblyBottomUp(this.Application.Sw, bomLineRes.fatherObject, processedDict);
                         }
                     }
-                    if (!isPartExist)
-                        await HandleNewDoc();
-                    else
+
+                    // 4. 打开
+                    int docType = (int)swDocumentTypes_e.swDocPART;
+                    string fileExt = Path.GetExtension(topFullPath).ToLower();
+                    if (fileExt == ".sldasm")
                     {
-                        SessionContext.Puid = null;
-                        SessionContext.ObjectType = null;
-                        // 下载
-                        string fileName = targetDataset.strObjectName;
-                        string fullPath = Path.Combine(Constants.SW_CACHE_PATH, fileName);
-                        await MD5Util.OpenDocDownLoadFromPLM(fileName, fullPath, targetDataset);
-                        // 打开
-                        await OpenAndSyncAttr(fullPath, targetItemDataset);
+                        docType = (int)swDocumentTypes_e.swDocASSEMBLY;
                     }
+                    else if (fileExt == ".slddrw")
+                    {
+                        docType = (int)swDocumentTypes_e.swDocDRAWING;
+                    }
+                    if (!File.Exists(topFullPath)) return;
+                    int errors = 0, warnings = 0;
+                    this.Application.Sw.OpenDoc6(topFullPath, docType, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref errors, ref warnings);
                 }
             }
             catch (Exception ex)

@@ -723,7 +723,7 @@ namespace BplmSw.OpenDoc
                     if (bomLineRes.fatherObject != null)
                     {
                         Dictionary<string, bool> processedDict = new Dictionary<string, bool>();
-                        await UpdateAssemblyBottomUp(bomLineRes.fatherObject, processedDict);
+                        await UpdateAssemblyBottomUp(Sw, bomLineRes.fatherObject, processedDict);
                     }
                 }
 
@@ -753,12 +753,12 @@ namespace BplmSw.OpenDoc
                 MessageBox.Show("打开过程出错: " + ex.Message);
             }
         }
-        public async Task SyncAttrs(ModelDoc2 doc, string id, string type)
+        public static async Task SyncAttrs(ISldWorks sw, ModelDoc2 doc, string id, string type)
         {
             int err = 0;
             if (doc != null)
             {// 激活并前台显示
-                Sw.ActivateDoc3(doc.GetTitle(), false, (int)swRebuildOnActivation_e.swUserDecision, ref err);
+                sw.ActivateDoc3(doc.GetTitle(), false, (int)swRebuildOnActivation_e.swUserDecision, ref err);
 
                 // 同步属性
                 var attrRes = (AttributesResponse)await HttpRequest.queryItemAttributes(id, type);
@@ -791,7 +791,7 @@ namespace BplmSw.OpenDoc
         /// <summary>
         /// 自底向上递归重组装配体
         /// </summary>
-        private async Task UpdateAssemblyBottomUp(BomLineResponse.FatherObject node, Dictionary<string, bool> processedDict)
+        public static async Task UpdateAssemblyBottomUp(ISldWorks sw, BomLineResponse.FatherObject node, Dictionary<string, bool> processedDict)
         {
             int err = 0, warn = 0;
             // 跳过空节点或零件，但会打开并同步属性
@@ -804,23 +804,23 @@ namespace BplmSw.OpenDoc
                     string prtPath = Path.Combine(Constants.SW_CACHE_PATH, prtName);
 
                     if (!File.Exists(prtPath)) return;
-                    ModelDoc2 doc = Sw.OpenDoc6(prtPath, (int)swDocumentTypes_e.swDocPART, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref err, ref warn);
-                    await SyncAttrs(doc, node.revision_puid, node.revision_type);
-                    Sw.CloseDoc(doc.GetTitle());
+                    ModelDoc2 doc = sw.OpenDoc6(prtPath, (int)swDocumentTypes_e.swDocPART, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref err, ref warn);
+                    await SyncAttrs(sw, doc, node.revision_puid, node.revision_type);
+                    sw.CloseDoc(doc.GetTitle());
                     processedDict[node.revision_puid] = true;
                 }
                 return;
             };
 
             // 先递归处理子装配
-            foreach (var child in node.children) await UpdateAssemblyBottomUp(child, processedDict);
+            foreach (var child in node.children) await UpdateAssemblyBottomUp(sw, child, processedDict);
 
             // 打开装配
             string asmName = node.item_id + '_' + node.item_revision_id + '_' + node.object_name + ".sldasm";
             string asmPath = Path.Combine(Constants.SW_CACHE_PATH, asmName);
             if (!File.Exists(asmPath)) return;
-            ModelDoc2 asmDoc = Sw.OpenDoc6(asmPath, (int)swDocumentTypes_e.swDocASSEMBLY, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref err, ref warn);
-            await SyncAttrs(asmDoc, node.revision_puid, node.revision_type);
+            ModelDoc2 asmDoc = sw.OpenDoc6(asmPath, (int)swDocumentTypes_e.swDocASSEMBLY, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref err, ref warn);
+            await SyncAttrs(sw, asmDoc, node.revision_puid, node.revision_type);
             // 更新组件（删除并插入）
             if (asmDoc != null)
             {
@@ -898,12 +898,12 @@ namespace BplmSw.OpenDoc
                             {
                                 string ext = Path.GetExtension(fileName).ToLower();
                                 int docType = ".sldasm" == ext ? (int)swDocumentTypes_e.swDocASSEMBLY : (int)swDocumentTypes_e.swDocPART;
-                                ModelDoc2 doc = Sw.OpenDoc6(childPath, docType, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref err, ref warn);
+                                ModelDoc2 doc = sw.OpenDoc6(childPath, docType, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref err, ref warn);
                                 Component2 newComp = swAsm.AddComponent5(
                                     childPath,
                                     (int)swAddComponentConfigOptions_e.swAddComponentConfigOptions_CurrentSelectedConfig,
                                     "", false, "", 0, 0, 0);
-                                Sw.CloseDoc(doc.GetTitle());
+                                sw.CloseDoc(doc.GetTitle());
                                 if (newComp == null) Console.WriteLine($"插入组件失败，文件可能损坏或版本不兼容: {childPath}");
                             }
                         }
@@ -913,7 +913,7 @@ namespace BplmSw.OpenDoc
                 //保存并关闭
                 asmDoc.ForceRebuild3(true);
                 asmDoc.Save3((int)swSaveAsOptions_e.swSaveAsOptions_Silent, ref err, ref warn);
-                Sw.CloseDoc(asmDoc.GetTitle());
+                sw.CloseDoc(asmDoc.GetTitle());
             }
         }
 
