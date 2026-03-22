@@ -830,17 +830,22 @@ namespace BplmSw.OpenDoc
             if (asmDoc != null)
             {
                 AssemblyDoc swAsm = (AssemblyDoc)asmDoc;
-                // 1、统计 PLM BOM 预期的组件及其数量
-                Dictionary<string, int> expectedBom = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+                // 注册属性包定义（只需一次，重复调用 DefineAttribute 同名会返回已有的）
+                AttributeDef bomLineAttrDef = (AttributeDef)sw.DefineAttribute("BomLineAttribute");
+                bomLineAttrDef.AddParameter("uid", (int)swParamType_e.swParamTypeString, 1.0, 0);
+                bomLineAttrDef.Register();
+
+                // 1、统计 PLM BOM 预期的组件（按文件名分组，保留 FatherObject 以获取 bom_line_uid）
+                Dictionary<string, List<BomLineResponse.FatherObject>> expectedBom = new Dictionary<string, List<BomLineResponse.FatherObject>>(StringComparer.OrdinalIgnoreCase);
                 foreach (var child in node.children)
                 {
                     string ext = child.has_children ? ".sldasm" : ".sldprt";
                     string childFileName = $"{child.item_id}_{child.item_revision_id}_{child.object_name}{ext}";
 
-                    if (expectedBom.ContainsKey(childFileName))
-                        expectedBom[childFileName]++;
-                    else
-                        expectedBom[childFileName] = 1;
+                    if (!expectedBom.ContainsKey(childFileName))
+                        expectedBom[childFileName] = new List<BomLineResponse.FatherObject>();
+                    expectedBom[childFileName].Add(child);
                 }
                 // 2、统计 SolidWorks 现有的组件及其数量
                 Dictionary<string, List<Component2>> existingBom = new Dictionary<string, List<Component2>>(StringComparer.OrdinalIgnoreCase);
@@ -865,7 +870,7 @@ namespace BplmSw.OpenDoc
                     string fileName = kvp.Key;
                     List<Component2> comps = kvp.Value;
 
-                    int expectedQty = expectedBom.ContainsKey(fileName) ? expectedBom[fileName] : 0;
+                    int expectedQty = expectedBom.ContainsKey(fileName) ? expectedBom[fileName].Count : 0;
                     int existingQty = comps.Count;
 
                     if (existingQty > expectedQty)
@@ -890,7 +895,8 @@ namespace BplmSw.OpenDoc
                 foreach (var kvp in expectedBom)
                 {
                     string fileName = kvp.Key;
-                    int expectedQty = kvp.Value;
+                    List<BomLineResponse.FatherObject> bomLines = kvp.Value;
+                    int expectedQty = bomLines.Count;
                     int existingQty = existingBom.ContainsKey(fileName) ? existingBom[fileName].Count : 0;
 
                     if (expectedQty > existingQty)
@@ -899,8 +905,10 @@ namespace BplmSw.OpenDoc
                         string childPath = Path.Combine(Constants.SW_CACHE_PATH, fileName);
                         if (File.Exists(childPath))
                         {
+                            // 从 bomLines 尾部取未匹配的 BomLine（前 existingQty 个视为已匹配）
                             for (int i = 0; i < toAdd; i++)
                             {
+                                BomLineResponse.FatherObject bomLine = bomLines[existingQty + i];
                                 string ext = Path.GetExtension(fileName).ToLower();
                                 int docType = ".sldasm" == ext ? (int)swDocumentTypes_e.swDocASSEMBLY : (int)swDocumentTypes_e.swDocPART;
                                 ModelDoc2 doc = sw.OpenDoc6(childPath, docType, (int)swOpenDocOptions_e.swOpenDocOptions_Silent, "", ref err, ref warn);
@@ -909,7 +917,23 @@ namespace BplmSw.OpenDoc
                                     (int)swAddComponentConfigOptions_e.swAddComponentConfigOptions_CurrentSelectedConfig,
                                     "", false, "", 0, 0, 0);
                                 sw.CloseDoc(doc.GetTitle());
-                                if (newComp == null) Console.WriteLine($"插入组件失败，文件可能损坏或版本不兼容: {childPath}");
+
+                                // 为新插入的组件附加属性包，写入 bom_line_uid
+                                if (newComp != null && !string.IsNullOrEmpty(bomLine.bom_line_uid))
+                                {
+                                    SolidWorks.Interop.sldworks.Attribute attribute = (SolidWorks.Interop.sldworks.Attribute)bomLineAttrDef.CreateInstance5(
+                                        asmDoc, newComp, newComp.Name2 + "_" + newComp.GetID(), 0,
+                                        (int)swInConfigurationOpts_e.swAllConfiguration);
+                                    if (attribute != null)
+                                    {
+                                        Parameter parameter = (Parameter)attribute.GetParameter("uid");
+                                        parameter.SetStringValue2(bomLine.bom_line_uid, (int)swInConfigurationOpts_e.swAllConfiguration, "");
+                                    }
+                                }
+                                else if (newComp == null)
+                                {
+                                    Console.WriteLine($"插入组件失败，文件可能损坏或版本不兼容: {childPath}");
+                                }
                             }
                         }
                         else Console.WriteLine($"新增组件时找不到本地文件: {childPath}");
